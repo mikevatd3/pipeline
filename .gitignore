@@ -1,0 +1,6 @@
+*.ipynb
+__pycache__/*
+env/*
+products/*
+data/*
+pipeline_config.toml
