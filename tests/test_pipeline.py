@@ -11,7 +11,7 @@ from lib.aggregation import (
     build_query,
 )
 from lib.d3models import get_variable_metadata, read_table_variables_to_dataframe
-from lib.connection import build_sessions
+from lib.connection import build_connections
 from lib.suppression import apply_suppression
 
 
@@ -19,7 +19,7 @@ with open("pipeline_config.toml", "rb") as f:
     config = tomli.load(f)
 
 
-_, WorkingSession, _ = build_sessions(config)
+_, WorkingSession, _ = build_connections(config)
 
 
 def check_lines_match(a: str, b: str):

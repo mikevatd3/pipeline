@@ -1,5 +1,7 @@
-import pandas as pd
+from typing import Optional
 from enum import Enum as _Enum, auto
+import pandas as pd
+from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy import (
     Integer,
     String,
@@ -8,17 +10,26 @@ from sqlalchemy import (
     Table,
     Column,
     select,
-    Enum,
-    UniqueConstraint,
 )
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, Session, relationship
-from .connection import sqlalch_obj_to_dict
-from .dtypes import Indentation, CensusVariableName
+from sqlalchemy.orm import (
+    DeclarativeBase,
+    Mapped,
+    mapped_column,
+    Session,
+    relationship,
+)
+from sqlalchemy.dialects.postgresql import ENUM
 
 
 ## Database table definitions
 class Base(DeclarativeBase):
     pass
+
+
+class TimeFrame(_Enum):
+    PAST = auto()
+    PRESENT = auto()
+    UNDESIGNATED = auto()
 
 
 class D3TableMetadata(Base):
@@ -37,14 +48,35 @@ class D3TableMetadata(Base):
     tool: Mapped[str] = mapped_column(String(10), nullable=True)
     documentation: Mapped[str] = mapped_column(Text(), nullable=True)
 
-    variables: Mapped[list['D3VariableMetadata']] = relationship(back_populates="table")
+    variables: Mapped[list["D3VariableMetadata"]] = relationship(
+        back_populates="table"
+    )
     variable_groups: Mapped[list["D3VariableGroup"]] = relationship(
         back_populates="table"
     )
-    editions: Mapped[list['D3EditionMetadata']] = relationship(back_populates="table")
+    all_editions: Mapped[list["D3EditionMetadata"]] = relationship(
+        back_populates="table"
+    )
 
+    def __str__(self):
+        return f"{self.table_name}: {self.description_simple}"
 
-# This is currently unused, but could be helpful below.
+    __repr__ = __str__
+
+    def select_timeframe(self, timeframe: str, db):
+        stmt = (
+            select(D3EditionMetadata)
+            .where(D3EditionMetadata.time_frame == timeframe)
+            .where(D3EditionMetadata.table_name == self.table_name)
+        )
+
+        return db.scalars(stmt).first()
+
+    def past(self, db):
+        return self.select_timeframe('PAST', db)
+
+    def present(self, db):
+        return self.select_timeframe('PRESENT', db)
 
 
 class Unit(_Enum):
@@ -68,11 +100,13 @@ class D3VariableMetadata(Base):
     __tablename__ = "d3_variable_metadata"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    variable_name: Mapped[CensusVariableName] = mapped_column(String(12), unique=True)
-    table_name: Mapped[str] = mapped_column(ForeignKey("d3_table_metadata.table_name"))
-    indentation: Mapped[Indentation] = mapped_column(Integer(), nullable=True)
+    variable_name: Mapped[str] = mapped_column(String(12), unique=True)
+    table_name: Mapped[str] = mapped_column(
+        ForeignKey("d3_table_metadata.table_name")
+    )
+    indentation: Mapped[int] = mapped_column(Integer(), nullable=True)
     description: Mapped[str] = mapped_column(String(200), nullable=True)
-    parent_column: Mapped[CensusVariableName] = mapped_column(String(12), nullable=True)
+    parent_column: Mapped[str] = mapped_column(String(12), nullable=True)
     sql_aggregation_phrase: Mapped[str] = mapped_column(Text(), nullable=True)
     # units: Mapped[Unit] = mapped_column(Enum(Unit))
     documentation: Mapped[str] = mapped_column(Text(), nullable=True)
@@ -82,23 +116,38 @@ class D3VariableMetadata(Base):
         back_populates="parent_variable"
     )
 
+    def __str__(self):
+        return f"{self.variable_name}: {self.description}"
+
+    __repr__ = __str__
+
 
 class D3EditionMetadata(Base):
     __tablename__ = "d3_edition_metadata"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    table_name: Mapped[str] = mapped_column(ForeignKey("d3_table_metadata.table_name"))
+    table_name: Mapped[str] = mapped_column(
+        ForeignKey("d3_table_metadata.table_name")
+    )
 
-    # FUTURE: Make this more flexible to support other tooling
-    # time_frame: Mapped[int] = mapped_column(Integer(), primary_key=True) # This is a year, then we alias d3_past, d3_present
-
-    edition: Mapped[str] = mapped_column(String(20))  # This is d3_past or d3_present
+    edition: Mapped[str] = mapped_column(
+        String(20)
+    )  # This is d3_past or d3_present
     documentation: Mapped[str] = mapped_column(Text(), nullable=True)
     raw_table_db: Mapped[str] = mapped_column(String(20), nullable=True)
     raw_table_schema: Mapped[str] = mapped_column(String(50), nullable=True)
     raw_table_name: Mapped[str] = mapped_column(String(50), nullable=True)
+    time_frame: Mapped[TimeFrame] = mapped_column(
+        ENUM("PAST", "PRESENT", "UNDESIGNATED", name="timeframe"),
+        server_default="UNDESIGNATED",
+    )
 
-    table: Mapped[D3TableMetadata] = relationship(back_populates="editions")
+    table: Mapped[D3TableMetadata] = relationship(back_populates="all_editions")
+
+    def __str__(self) -> str:
+        return f"{self.table.table_name} for {self.edition}"
+
+    __repr__ = __str__
 
 
 class D3VariableGroup(Base):
@@ -109,7 +158,9 @@ class D3VariableGroup(Base):
     """
 
     id: Mapped[int] = mapped_column(Integer(), primary_key=True)
-    table_name: Mapped[str] = mapped_column(ForeignKey("d3_table_metadata.table_name"))
+    table_name: Mapped[str] = mapped_column(
+        ForeignKey("d3_table_metadata.table_name")
+    )
     description: Mapped[str] = mapped_column(String(100), nullable=False)
     documentation: Mapped[str] = mapped_column(Text(), nullable=True)
     parent_variable_name: Mapped[int] = mapped_column(
@@ -156,7 +207,9 @@ def read_table_variables_to_dataframe(
     )
 
 
-def get_variable_metadata(db: Session, table_name: str) -> list[D3VariableMetadata]:
+def get_variable_metadata(
+    db: Session, table_name: str
+) -> list[D3VariableMetadata]:
     """
     Pull the metadata object for each variable in the table.
     """
@@ -171,11 +224,15 @@ def get_variable_metadata(db: Session, table_name: str) -> list[D3VariableMetada
     )  # Cast to a list so it's not consumed while building query parts
 
 
-def get_table_metadata(db: Session, table_name: str) -> D3TableMetadata:
+def get_table_metadata(
+    db: Session, table_name: str
+) -> Optional[D3TableMetadata]:
     """
     Pull the table metadata object.
     """
-    stmt = select(D3TableMetadata).where(D3TableMetadata.table_name == table_name)
+    stmt = select(D3TableMetadata).where(
+        D3TableMetadata.table_name == table_name
+    )
 
     return db.scalar(stmt)
 
@@ -188,7 +245,9 @@ class InvalidTableError(Exception):
     pass
 
 
-def get_latest_edition_metadata(db: Session, table_name: str) -> D3EditionMetadata:
+def get_latest_edition_metadata(
+    db: Session, table_name: str
+) -> D3EditionMetadata:
     stmt = (
         select(D3EditionMetadata)
         .where(D3EditionMetadata.table_name == table_name)
@@ -225,6 +284,7 @@ def get_edition_metadata(
         )
 
     return result
+
 
 if __name__ == "__main__":
     from pathlib import Path
