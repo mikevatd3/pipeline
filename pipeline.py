@@ -213,11 +213,6 @@ if __name__ == "__main__":
         final_moe = add_moe_columns(final)
         push_moe_table(final_moe, namespace.table_name, DestinationSession().get_bind(), schema=destination_schema)
 
-        print("Saving backups.")
-        # Save backups
-        final.to_csv(Path.cwd() / "products" / f"{namespace.table_name}_{edition_metadata.edition}.csv", index=False)
-        final_moe.to_csv(Path.cwd() / "products" / f"{namespace.table_name}_{edition_metadata.edition}_moe.csv", index=False)
-
         # Update the metadata tables if necessary 
         if namespace.rebuild_metadata:
             print("Updating metadata on destination database.")
