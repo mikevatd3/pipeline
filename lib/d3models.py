@@ -19,6 +19,7 @@ from sqlalchemy.orm import (
     relationship,
 )
 from sqlalchemy.dialects.postgresql import ENUM
+from .connection import sqlalch_obj_to_dict
 
 
 ## Database table definitions
