@@ -18,6 +18,11 @@ from .crmodels import (
 def create_table_metadata_insert(table_metadata: D3TableMetadata) -> CRTableMetadata:
     denominator_column_id = table_metadata.table_name + "001"
 
+    if table_metadata.table_topics is not None:
+        table_topics = table_metadata.table_tpics.split(",")
+    else:
+        table_topics = []
+
     return CRTableMetadata(
         table_id=table_metadata.table_name,
         table_title=table_metadata.description,
@@ -25,7 +30,7 @@ def create_table_metadata_insert(table_metadata: D3TableMetadata) -> CRTableMeta
         subject_area=table_metadata.subject_area,
         universe=table_metadata.universe,
         denominator_column_id=denominator_column_id,
-        topics=table_metadata.table_topics.split(","),
+        topics=table_topics
     )
 
 
@@ -48,13 +53,19 @@ def create_variable_metadata_insert(
 def create_tabulation_metadata_insert(
     table_metadata: D3TableMetadata,
 ) -> CRTabulationMetadata:
+
+    if table_metadata.table_topics is not None:
+        table_topics = table_metadata.table_tpics.split(",")
+    else:
+        table_topics = []
+
     return CRTabulationMetadata(
         tabulation_code=table_metadata.table_name[1:],  # Peel the 'b' off the front
         table_title=table_metadata.description,
         simple_table_title=table_metadata.description_simple,
         subject_area=table_metadata.subject_area,
         universe=table_metadata.universe,
-        topics=table_metadata.table_topics.split(","),
+        topics=table_topics,
         weight=0,
         tables_in_one_yr=[],
         tables_in_three_yr=[],
