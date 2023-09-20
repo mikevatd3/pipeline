@@ -33,7 +33,6 @@ app.config['SECRET_KEY'] = secret_key
 
 def make_view(table_metadata_class):
     class VerboseView(ModelView):
-        column_display_pk = True # optional, but I like to see the IDs in the list
         column_hide_backrefs = False
         column_list = [c_attr.key for c_attr in inspect(table_metadata_class).mapper.column_attrs]
 
@@ -42,7 +41,6 @@ def make_view(table_metadata_class):
 
 class TableView(ModelView):
     inline_models = (D3VariableMetadata, D3EditionMetadata, D3VariableGroup)
-    column_display_pk = True # optional, but I like to see the IDs in the list
     column_hide_backrefs = False
     column_list = [c_attr.key for c_attr in inspect(D3TableMetadata).mapper.column_attrs]
 
@@ -55,6 +53,5 @@ admin = Admin(app, name='D3 Data Pipeline', template_mode='bootstrap3')
 admin.add_view(TableView(D3TableMetadata, db))
 admin.add_view(VariableView(D3VariableMetadata, db))
 admin.add_view(EditionView(D3EditionMetadata, db))
-
 
 app.run()
