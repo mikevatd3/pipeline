@@ -24,7 +24,7 @@ def create_table_metadata_insert(table_metadata: D3TableMetadata) -> CRTableMeta
         table_topics = []
 
     return CRTableMetadata(
-        table_id=table_metadata.table_name,
+        table_id=table_metadata.table_name.upper(),
         table_title=table_metadata.description,
         simple_table_title=table_metadata.description_simple,
         subject_area=table_metadata.subject_area,
@@ -41,8 +41,8 @@ def create_variable_metadata_insert(
         CRColumnMetadata(
             line_number=i,
             indent=d3_variable.indentation,
-            table_id=d3_variable.table_name,
-            column_id=d3_variable.variable_name,
+            table_id=d3_variable.table_name.upper(),
+            column_id=d3_variable.variable_name.upper(),
             column_title=d3_variable.description,
             parent_column_id=d3_variable.parent_column,
         )
@@ -69,7 +69,7 @@ def create_tabulation_metadata_insert(
         weight=0,
         tables_in_one_yr=[],
         tables_in_three_yr=[],
-        tables_in_five_yr=[table_metadata.table_name],
+        tables_in_five_yr=[table_metadata.table_name.upper()],
     )
 
 
