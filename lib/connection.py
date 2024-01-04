@@ -1,5 +1,7 @@
-from urllib.parse import quote
 from typing import Optional, Callable
+from urllib.parse import quote
+
+from sshtunnel import SSHTunnelForwarder
 from sqlalchemy import create_engine, Engine
 from sqlalchemy.orm import sessionmaker, Session
 
@@ -19,7 +21,7 @@ def build_engine(
 
     engine = create_engine(
         f"postgresql+psycopg2://{user}:{quote(password)}@{host}/{dbname}",
-        connect_args={"options": "-csearch_path={}".format(schema)},
+        connect_args={"options": f"-csearch_path={schema}"},
     )
 
     if schema_translate_map:
@@ -29,8 +31,10 @@ def build_engine(
 
 
 def build_connections(config: dict[str, str]) -> tuple[Callable[[str, str], Session], Callable[[],Session], Callable[[str, str], Session]]:
+    # This one is remote
     workspace_engine = build_engine(**config["workspace_db"])
-
+    
+    # This one is local (through vpn)
     def source_session_maker(db: str, schema: str):
         engine = build_engine(
             config["source_db"]["host"],
@@ -40,7 +44,8 @@ def build_connections(config: dict[str, str]) -> tuple[Callable[[str, str], Sess
             # schema=schema,
         )
         return sessionmaker(engine)
-    
+
+    # Also remote
     def destination_session_maker(schema: str):
         engine = build_engine(
             **config["destination_db"],
@@ -50,6 +55,14 @@ def build_connections(config: dict[str, str]) -> tuple[Callable[[str, str], Sess
         return sessionmaker(engine)
 
     return source_session_maker, lambda: sessionmaker(workspace_engine), destination_session_maker
+
+
+def build_local_connection():
+    pass
+
+
+def build_remote_connection():
+    pass
 
 
 def sqlalch_obj_to_dict(alch_obj):

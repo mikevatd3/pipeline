@@ -13,6 +13,11 @@ def push_base_table(
     table.to_sql(table_name, engine, schema=schema, if_exists="replace", index=False)
 
 
+# Options no moe
+# Moe with direct sum
+# Moe with l2
+
+
 def add_moe_columns(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
     value_columns = [col for col in df.columns if col != "geoid"]
