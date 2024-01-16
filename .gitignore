@@ -6,3 +6,4 @@ data/*
 pipeline_config.toml__pycache__
 lib/__pycache__
 pipeline_config.toml
+config.toml
