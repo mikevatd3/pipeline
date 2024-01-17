@@ -7,8 +7,8 @@ from sqlalchemy import create_engine, Engine
 
 def _build_engine(
     host: str,
-    dbname: str,
     port: str,
+    dbname: str,
     user: str,
     password: str,
     schema: Optional[str] = None,
@@ -39,6 +39,7 @@ def _build_engine(
 def build_workspace_engine(config, port):
     return _build_engine(
         '127.0.0.1',
+        port,
         config["workspace_db"]["dbname"],
         config["workspace_db"]["user"],
         config["workspace_db"]["password"],
@@ -49,6 +50,7 @@ def build_workspace_engine(config, port):
 def build_source_engine(config, port, db_name):
     return _build_engine(
         config["source_db"]["host"],
+        port,
         db_name,
         config["source_db"]["user"],
         config["source_db"]["password"],
@@ -61,7 +63,11 @@ def build_destination_engine(config, port, schema):
     so we provide slightly different settings.
     """
     return _build_engine(
-        **config["destination_db"],
+        config["destination_db"]["host"],
+        port,
+        config["destination_db"]["dbname"],
+        config["destination_db"]["user"],
+        config["destination_db"]["password"],
         schema_translate_map={None: "public", "census": schema},
     )
 
