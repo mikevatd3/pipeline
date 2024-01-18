@@ -63,7 +63,7 @@ def build_destination_engine(config, port, schema):
     so we provide slightly different settings.
     """
     return _build_engine(
-        config["destination_db"]["host"],
+        '127.0.0.1',
         port,
         config["destination_db"]["dbname"],
         config["destination_db"]["user"],
