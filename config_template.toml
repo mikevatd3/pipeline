@@ -1,0 +1,34 @@
+title = "Various Data Driven Detroit system credentials"
+
+# EDW
+[source_db]
+host = ""
+dbname = ""
+user = ""
+password = ""
+
+# The same as 'destination_db' currently.
+[workspace_db]
+host = ""
+dbname = ""
+user = ""
+password = ""
+schema = ""
+
+[destination_db]
+host = ""
+dbname = ""
+user = ""
+password = ""
+
+
+# These two should be the same currently
+[workspace_machine]
+user=""
+password=""
+
+[destination_machine]
+user=""
+password=""
+
+

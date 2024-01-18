@@ -47,10 +47,10 @@ def build_workspace_engine(config, port):
     )
 
 
-def build_source_engine(config, port, db_name):
+def build_source_engine(config, db_name):
     return _build_engine(
         config["source_db"]["host"],
-        port,
+        5432,
         db_name,
         config["source_db"]["user"],
         config["source_db"]["password"],

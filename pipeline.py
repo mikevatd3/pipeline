@@ -87,34 +87,7 @@ parser.add_argument(
 parser.add_argument(
     "--config",
     default="pipeline_config.toml",
-    help=dedent(
-        """\
-    The config file must have your database credentials for source, 
-    workspace, and destination databases.
-
-    pipeline_config.toml ---------------------------------------------------------
-
-    [source_db]
-    host = "<host name or ip address>"
-    dbname = "<db name>"
-    user = "<username>"
-    password = "<your password>"
-
-    [workspace_db]
-    host = "<host name or ip address>"
-    dbname = "<db name>"
-    user = "<username>"
-    password = "<your password>"
-
-    [destination_db]
-    host = "<host name or ip address>"
-    dbname = "<db name>"
-    user = "<username>"
-    password = "<your password>"
-
-    ---------------------------------------------------------------------
-    """
-    ),
+    help="Check the config_template.toml for the correct structure.",
 )
 
 
@@ -216,7 +189,6 @@ def main():
         # otherwise run the aggregation to obtain the dataframe
         source_engine = build_source_engine(
             config,
-            tunnel.local_bind_port, # type: ignore
             edition_metadata.raw_table_db,
         )
         unsuppressed = run_aggregation(
