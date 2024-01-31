@@ -1,3 +1,4 @@
+from textwrap import dedent
 import pandas as pd
 
 from .dtypes import Indentation, CensusVariableName
@@ -89,12 +90,10 @@ def mute_small_values(
     """
     Applies the mute process to a row.
     """
-
     pivot = find_pivot_column(row, threshold=threshold)
 
     # Copy the row before making changes.
     safe = row.copy()
-
     match pivot:
         case AllAbove():
             return safe
@@ -118,6 +117,15 @@ def mute_small_values(
 def apply_suppression(
     df: pd.DataFrame, column_metadata: pd.DataFrame, threshold: int = 6
 ) -> pd.DataFrame:
+
+    if column_metadata["indentation"].isna().any():
+        raise ValueError(
+            dedent("""
+            Some variables on this table don't have an indentation specified in recipe. Make 
+            sure all variables have their indentation set and try again.
+            """)
+        )   
+
     return pd.DataFrame(
         [mute_small_values(row, column_metadata, threshold) for _, row in df.iterrows()]
     )

@@ -41,14 +41,30 @@ parser = argparse.ArgumentParser(
     prog="D3 HIP / SDC aggregator & DUA suppressor",
     description=dedent(
         """
-    Aggregates the data according to the sql statements in the config files 
-    provided in the table_config directory.
 
-    Removes any value that is below the threshold provided (reads from metadata 
-    but usually 6), and all values that could be used to infer those values.
+    8888888b.   .d8888b.       8888888b.  d8b                   888 d8b                   
+    888  "Y88b d88P  Y88b      888   Y88b Y8P                   888 Y8P                   
+    888    888      .d88P      888    888                       888                       
+    888    888     8888"       888   d88P 888 88888b.   .d88b.  888 888 88888b.   .d88b.  
+    888    888      "Y8b.      8888888P"  888 888 "88b d8P  Y8b 888 888 888 "88b d8P  Y8b 
+    888    888 888    888      888        888 888  888 88888888 888 888 888  888 88888888 
+    888  .d88P Y88b  d88P      888        888 888 d88P Y8b.     888 888 888  888 Y8b.     
+    8888888P"   "Y8888P"       888        888 88888P"   "Y8888  888 888 888  888  "Y8888  
+                                              888                                         
+                                              888                                         
+                                              888                                        
 
-    This is calculated based on the indentation level provided in the Census 
-    Reporter metadata for all variables.
+    D3 Pipeline is the aggregation tool for the D3 API.
+
+    The tool draws data from EDW and builds the target aggregate table following the 
+    table build 'recipe' found on sdcapi.datadrivendetroit.org/admin. It applies
+    the suppression if indicated in the recipe before pushing to the public API.
+
+    To set up, add appropriate credentials to the 'config_template.toml' file and
+    rename to 'pipefile_config.toml'. Then you're ready to go!
+
+    Access or update the table build recipes at sdcapi.datadrivendetroit.org/admin 
+    (login credentials required).
     """
     ),
     formatter_class=RawTextHelpFormatter,
@@ -70,7 +86,7 @@ parser.add_argument(
 parser.add_argument(
     "-ds",
     "--destination_schema",
-    help="The time frame of the table that you're building: ['d3_preset', 'd3_past'].",
+    help="The time frame of the table that you're building: ['d3_<year>', 'd3_preset', 'd3_past'].",
 )
 parser.add_argument(
     "-hlw",
@@ -79,10 +95,10 @@ parser.add_argument(
     help="Pushes empty base and moe tables to the database with the correct fields.",
 )
 parser.add_argument(
-    "-rbm",
-    "--rebuild_metadata",
+    "-nu",
+    "--no_update",
     action="store_true",
-    help="Rebuilds the metadata--use this if a change has happened in d3 metadata.",
+    help="Simply reads the table metadata from the workspace database--useful if you only want to rebuild metadata.",
 )
 parser.add_argument(
     "--config",
@@ -151,7 +167,7 @@ def load_metadata(db, namespace):
         )
         sys.exit()
 
-    print("Metadata loaded, beginning aggregation.")
+    print(f"Metadata loaded for {table_metadata.table_name}: {table_metadata.description}, beginning aggregation.")
 
     return edition_metadata, variable_metadata, table_metadata
 
@@ -181,7 +197,7 @@ def main():
             )
 
     # 2. Run aggregation
-    if namespace.hollow:
+    if namespace.hollow or namespace.no_update:
         # If the hollow flag is set, build an empty dataframe with the correct shape.
         unsuppressed = build_empty_table(variable_metadata)
 
@@ -206,51 +222,55 @@ def main():
     elif namespace.hollow:
         print("Hollow table ready.")
         final = unsuppressed
+    elif namespace.no_update:
+        final = unsuppressed
     else:
         print("Aggregation complete, beginning suppression.")
         final = apply_suppression(
             unsuppressed,
             variable_metadata_df,
-            table_metadata.suppression_threshold, 
+            threshold=table_metadata.suppression_threshold, 
         )
 
     # 4. Deliver tables
-
-    print("Pushing updated tables to destination database.")
-
     # Need an ssh tunnel like the workspace connection above
     with open_destination_tunnel(config) as tunnel:
         destination_engine = build_destination_engine(
             config, str(tunnel.local_bind_port), destination_schema # type: ignore
         )
         DestinationSession = sessionmaker(destination_engine)
-        push_base_table(
-            final,
-            namespace.table_name,
-            destination_engine,
-            schema=destination_schema,
-        )
+        if not namespace.no_update:
+            print(f"Pushing {namespace.table_name} to schema {destination_schema} on destination database.")
 
-        final_moe = add_moe_columns(final)
-        push_moe_table(
-            final_moe,
-            namespace.table_name,
-            destination_engine,
-            schema=destination_schema,
-        )
+            push_base_table(
+                final,
+                namespace.table_name,
+                destination_engine,
+                schema=destination_schema,
+            )
+
+            final_moe = add_moe_columns(final)
+            push_moe_table(
+                final_moe,
+                namespace.table_name,
+                destination_engine,
+                schema=destination_schema,
+            )
+        else:
+            print("No-update flag was selected so no data is moving.")
+
 
         # Update the metadata tables if necessary
-        if namespace.rebuild_metadata:
-            print("Updating metadata on destination database.")
-            try:
-                with DestinationSession() as db:
-                    update_metadata(
-                        db,
-                        table_metadata,
-                        variable_metadata,
-                    )
-            except (TypeError, AttributeError):
-                print("ERROR: Unable to update metadata.")
+        print("Updating metadata on destination database.")
+        try:
+            with DestinationSession() as db:
+                update_metadata(
+                    db,
+                    table_metadata,
+                    variable_metadata,
+                )
+        except (TypeError, AttributeError) as e:
+            print(f"ERROR: Unable to update metadata--{e}")
 
     print("Complete!")
 

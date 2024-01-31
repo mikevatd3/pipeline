@@ -19,7 +19,7 @@ def create_table_metadata_insert(table_metadata: D3TableMetadata) -> CRTableMeta
     denominator_column_id = table_metadata.table_name + "001"
 
     if table_metadata.table_topics is not None:
-        table_topics = table_metadata.table_tpics.split(",")
+        table_topics = table_metadata.table_topics.split(",")
     else:
         table_topics = []
 
@@ -55,7 +55,7 @@ def create_tabulation_metadata_insert(
 ) -> CRTabulationMetadata:
 
     if table_metadata.table_topics is not None:
-        table_topics = table_metadata.table_tpics.split(",")
+        table_topics = table_metadata.table_topics.split(",")
     else:
         table_topics = []
 
